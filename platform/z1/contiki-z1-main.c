@@ -378,7 +378,7 @@ main(int argc, char **argv)
 
 #if TIMESYNCH_CONF_ENABLED
   timesynch_init();
-  timesynch_set_authority_level(linkaddr_node_addr.u8[0]);
+  timesynch_set_authority_level(255);
 #endif /* TIMESYNCH_CONF_ENABLED */
 
 #if NETSTACK_CONF_WITH_IPV4
