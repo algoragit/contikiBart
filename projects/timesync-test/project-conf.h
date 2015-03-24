@@ -4,4 +4,7 @@
 #define TIMESYNCH_CONF_ENABLED	1
 #define CONF_SFD_TIMESTAMPS	1
 
+#define NETSTACK_CONF_RDC	cxmac_driver
+#define NETSTACK_CONF_FRAMER	framer_802154
+
 #endif
