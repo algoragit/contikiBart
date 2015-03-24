@@ -1,6 +1,7 @@
 #include "muchmac.h"
 #include "net/netstack.h"
 #include "net/packetbuf.h"
+#include "net/queuebuf.h"
 
 static void
 send(mac_callback_t sent_callback, void *ptr)
@@ -34,7 +35,10 @@ send(mac_callback_t sent_callback, void *ptr)
 static void
 send_list(mac_callback_t sent_callback, void *ptr, struct rdc_buf_list *list)
 {
-
+  if (list != NULL) {
+    queuebuf_to_packetbuf(list->buf);
+    send(sent_callback, ptr);
+  }
 }
 
 static void
