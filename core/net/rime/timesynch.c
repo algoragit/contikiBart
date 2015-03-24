@@ -74,6 +74,17 @@ PROCESS(timesynch_process, "Timesynch process");
 
 #define MIN_INTERVAL CLOCK_SECOND * 8
 #define MAX_INTERVAL CLOCK_SECOND * 60 * 5
+
+#define DEBUG 0
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINTADDR(addr) PRINTF("%d.%d", addr->u8[0], addr->u8[1])
+#else
+#define PRINTF(...)
+#define PRINTADDR(addr)
+#endif
+
 /*---------------------------------------------------------------------------*/
 int
 timesynch_authority_level(void)
@@ -89,6 +100,8 @@ timesynch_set_authority_level(int level)
   authority_level = level;
 
   if(old_level != authority_level) {
+    PRINTF("timesynch: new authority level %d (old: %d)\n",
+           authority_level, old_level);
     /* Restart the timesynch process to restart with a low
        transmission interval. */
     process_exit(&timesynch_process);
@@ -123,12 +136,18 @@ timesynch_offset(void)
 static void
 adjust_offset(rtimer_clock_t authoritative_time, rtimer_clock_t local_time)
 {
+  PRINTF("timesynch: adjust offset %u (old: %u)\n",
+         authoritative_time - local_time, offset);
   offset = authoritative_time - local_time;
 }
 /*---------------------------------------------------------------------------*/
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
+  PRINTF("timesynch: recv sync msg from ");
+  PRINTADDR(from);
+  PRINTF("\n");
+
   struct timesynch_msg msg;
 
   memcpy(&msg, packetbuf_dataptr(), sizeof(msg));
@@ -166,6 +185,8 @@ PROCESS_THREAD(timesynch_process, ev, data)
 
     PROCESS_WAIT_UNTIL(etimer_expired(&sendtimer));
 
+    PRINTF("timesynch: send sync msg (auth level %d, auth offset: %u)\n",
+           authority_level, offset);
     msg.authority_level = authority_level;
     msg.dummy = 0;
     msg.authority_offset = offset;
