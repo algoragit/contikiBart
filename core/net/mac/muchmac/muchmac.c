@@ -2,11 +2,20 @@
 #include "net/netstack.h"
 #include "net/packetbuf.h"
 #include "net/queuebuf.h"
-#include <stdio.h>
 #include "net/rime/timesynch.h"
 #include "dev/leds.h"
 #include "lib/memb.h"
 #include "lib/list.h"
+
+#define DEBUG 0
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINTADDR(addr) PRINTF("%d.%d", addr->u8[0], addr->u8[1])
+#else
+#define PRINTF(...)
+#define PRINTADDR(addr)
+#endif
 
 #define ON_PERIOD	RTIMER_SECOND/2
 
@@ -128,14 +137,14 @@ PROCESS_THREAD(send_packet, ev, data)
       struct muchmac_queue_item *item = list_tail(muchmac_queue);
       queuebuf_to_packetbuf(item->buf);
 
-      printf("muchmac: send packet %p from queue\n", item->buf);
+      PRINTF("muchmac: send packet %p from queue\n", item->buf);
 
       int ret;
       packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &linkaddr_node_addr);
 
       if (!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &linkaddr_null)) {
         int channel = get_channel(packetbuf_addr(PACKETBUF_ADDR_RECEIVER));
-        printf("muchmac: changing to receiver channel %d\n", channel);
+        PRINTF("muchmac: changing to receiver channel %d\n", channel);
         NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
       }
 
@@ -167,7 +176,7 @@ PROCESS_THREAD(send_packet, ev, data)
       if (!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &linkaddr_null)) {
         linkaddr_t addr = in_unicast_slot ? linkaddr_node_addr : linkaddr_null;
         int channel = get_channel(&addr);
-        printf("muchmac: changing back to channel %d\n", channel);
+        PRINTF("muchmac: changing back to channel %d\n", channel);
         NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
       }
     }
@@ -212,17 +221,17 @@ send_list(mac_callback_t sent_callback, void *ptr, struct rdc_buf_list *list)
     if (radio_is_on &&
        ((packetbuf_holds_broadcast() && in_broadcast_slot) ||
           (!packetbuf_holds_broadcast() && in_unicast_slot))) {
-        printf("muchmac: send immediately\n");
+        PRINTF("muchmac: send immediately\n");
         if (!(in_broadcast_slot && in_unicast_slot) && !packetbuf_holds_broadcast()) {
           int channel = get_channel(packetbuf_addr(PACKETBUF_ADDR_RECEIVER));
-          printf("muchmac: changing to receiver channel %d\n", channel);
+          PRINTF("muchmac: changing to receiver channel %d\n", channel);
           NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
         }
         queuebuf_to_packetbuf(list->buf);
         send(sent_callback, ptr);
         if (!(in_broadcast_slot && in_unicast_slot) && !packetbuf_holds_broadcast()) {
           int channel = get_channel(&linkaddr_node_addr);
-          printf("muchmac: changing back to channel %d\n", channel);
+          PRINTF("muchmac: changing back to channel %d\n", channel);
           NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
         }
     } else {
@@ -241,7 +250,7 @@ send_list(mac_callback_t sent_callback, void *ptr, struct rdc_buf_list *list)
         item->sent_callback = sent_callback;
         item->sent_ptr = ptr;
         list_push(muchmac_queue, item);
-        printf("muchmac: packet %p queued\n", item->buf);
+        PRINTF("muchmac: packet %p queued\n", item->buf);
       }
     }
   }
@@ -283,7 +292,7 @@ channel_check_interval(void)
 static void
 start_tdma(void *ptr)
 {
-  printf("muchmac: starting TDMA mode\n");
+  PRINTF("muchmac: starting TDMA mode\n");
   rtimer_set(&rt, timesynch_time_to_rtimer(0), 0, (rtimer_callback_t)powercycle, NULL);
 }
 
