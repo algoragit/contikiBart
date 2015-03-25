@@ -24,11 +24,14 @@ struct muchmac_queue_item {
 
 #define MAX_QUEUE_SIZE	4
 MEMB(muchmac_queue_memb, struct muchmac_queue_item, MAX_QUEUE_SIZE);
-LIST(muchmac_queue);
+LIST(muchmac_queue_unicast);
+LIST(muchmac_queue_broadcast);
 
 PROCESS(send_packet, "muchmac send process");
 
 static volatile unsigned char radio_is_on = 0;
+static volatile unsigned char in_broadcast_slot = 0;
+static volatile unsigned char in_unicast_slot = 0;
 
 static int
 turn_on()
@@ -52,25 +55,32 @@ powercycle(struct rtimer *t, void *ptr)
   PT_BEGIN(&pt);
 
   while (1) {
-    // slot start
+    // unicast slot start
+    in_unicast_slot = 1;
+    in_broadcast_slot = 0;
     turn_on();
-    if (list_tail(muchmac_queue) != NULL) {
+    if (list_tail(muchmac_queue_unicast) != NULL) {
       process_poll(&send_packet);
     }
     rtimer_set(t, RTIMER_NOW() + ON_PERIOD, 0, (rtimer_callback_t)powercycle, NULL);
     PT_YIELD(&pt);
 
-    // slot end
+    // unicast slot end
     turn_off();
     rtimer_set(t, timesynch_time_to_rtimer(RTIMER_SECOND), 0, (rtimer_callback_t)powercycle, NULL);
     PT_YIELD(&pt);
 
-    // slot start
+    // broadcast slot start
+    in_broadcast_slot = 1;
+    in_unicast_slot = 0;
     turn_on();
+    if (list_tail(muchmac_queue_broadcast) != NULL) {
+      process_poll(&send_packet);
+    }
     rtimer_set(t, RTIMER_NOW() + ON_PERIOD, 0, (rtimer_callback_t)powercycle, NULL);
     PT_YIELD(&pt);
 
-    // slot end
+    // broadcast slot end
     turn_off();
     rtimer_set(t, timesynch_time_to_rtimer(0), 0, (rtimer_callback_t)powercycle, NULL);
     PT_YIELD(&pt);
@@ -89,9 +99,17 @@ PROCESS_THREAD(send_packet, ev, data)
   while (1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
+    list_t muchmac_queue;
+    if (in_unicast_slot) {
+      muchmac_queue = muchmac_queue_unicast;
+    } else {
+      muchmac_queue = muchmac_queue_broadcast;
+    }
+
     if (list_tail(muchmac_queue) != NULL) {
       // busy wait to account for clock drift
       rtimer_clock_t t0 = RTIMER_NOW();
+
       while (RTIMER_CLOCK_LT(RTIMER_NOW(), t0 + WAIT_FOR_SEND)) ;
 
       struct muchmac_queue_item *item = list_tail(muchmac_queue);
@@ -164,20 +182,29 @@ static void
 send_list(mac_callback_t sent_callback, void *ptr, struct rdc_buf_list *list)
 {
   if (list != NULL) {
-    if (radio_is_on) {
-      queuebuf_to_packetbuf(list->buf);
-      send(sent_callback, ptr);
+    if (radio_is_on &&
+       ((packetbuf_holds_broadcast() && in_broadcast_slot) ||
+          (!packetbuf_holds_broadcast() && in_unicast_slot))) {
+        printf("muchmac: send immediately\n");
+        queuebuf_to_packetbuf(list->buf);
+        send(sent_callback, ptr);
     } else {
       struct muchmac_queue_item* item;
       item = memb_alloc(&muchmac_queue_memb);
       if (item == NULL) {
         mac_call_sent_callback(sent_callback, ptr, MAC_TX_ERR_FATAL, 1);
       } else {
+        list_t muchmac_queue;
+        if (packetbuf_holds_broadcast()) {
+          muchmac_queue = muchmac_queue_broadcast;
+        } else {
+          muchmac_queue = muchmac_queue_unicast;
+        }
         item->buf = list->buf;
         item->sent_callback = sent_callback;
         item->sent_ptr = ptr;
         list_push(muchmac_queue, item);
-        printf("packet %p queued\n", item->buf);
+        printf("muchmac: packet %p queued\n", item->buf);
       }
     }
   }
@@ -231,9 +258,14 @@ init(void)
   PT_INIT(&pt);
 
   memb_init(&muchmac_queue_memb);
-  list_init(muchmac_queue);
+  list_init(muchmac_queue_unicast);
+  list_init(muchmac_queue_broadcast);
 
   process_start(&send_packet, NULL);
+
+  // enable both broadcast & unicast while synchronizing
+  in_broadcast_slot = 1;
+  in_unicast_slot = 1;
 
   // schedule start of TDMA mode
   ctimer_set(&ct, 120*CLOCK_SECOND, start_tdma, NULL);
