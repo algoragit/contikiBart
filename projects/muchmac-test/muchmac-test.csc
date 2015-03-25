@@ -40,6 +40,26 @@
       <moteinterface>org.contikios.cooja.mspmote.interfaces.MspLED</moteinterface>
       <moteinterface>org.contikios.cooja.mspmote.interfaces.MspDebugOutput</moteinterface>
     </motetype>
+    <motetype>
+      org.contikios.cooja.mspmote.Z1MoteType
+      <identifier>z12</identifier>
+      <description>Z1 Mote Type #z12</description>
+      <source EXPORT="discard">[CONTIKI_DIR]/projects/muchmac-test/muchmac-master.c</source>
+      <commands EXPORT="discard">make muchmac-master.z1 TARGET=z1</commands>
+      <firmware EXPORT="copy">[CONTIKI_DIR]/projects/muchmac-test/muchmac-master.z1</firmware>
+      <moteinterface>org.contikios.cooja.interfaces.Position</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.RimeAddress</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.IPAddress</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.Mote2MoteRelations</moteinterface>
+      <moteinterface>org.contikios.cooja.interfaces.MoteAttributes</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspClock</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspMoteID</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspButton</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.Msp802154Radio</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspDefaultSerial</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspLED</moteinterface>
+      <moteinterface>org.contikios.cooja.mspmote.interfaces.MspDebugOutput</moteinterface>
+    </motetype>
     <mote>
       <breakpoints />
       <interface_config>
@@ -82,11 +102,25 @@
       </interface_config>
       <motetype_identifier>z11</motetype_identifier>
     </mote>
+    <mote>
+      <breakpoints />
+      <interface_config>
+        org.contikios.cooja.interfaces.Position
+        <x>75.26706093547165</x>
+        <y>80.74723978110626</y>
+        <z>0.0</z>
+      </interface_config>
+      <interface_config>
+        org.contikios.cooja.mspmote.interfaces.MspMoteID
+        <id>4</id>
+      </interface_config>
+      <motetype_identifier>z12</motetype_identifier>
+    </mote>
   </simulation>
   <plugin>
     org.contikios.cooja.plugins.SimControl
     <width>280</width>
-    <z>0</z>
+    <z>4</z>
     <height>160</height>
     <location_x>8</location_x>
     <location_y>413</location_y>
@@ -99,7 +133,7 @@
       <skin>org.contikios.cooja.plugins.skins.GridVisualizerSkin</skin>
       <skin>org.contikios.cooja.plugins.skins.TrafficVisualizerSkin</skin>
       <skin>org.contikios.cooja.plugins.skins.UDGMVisualizerSkin</skin>
-      <viewport>8.18849972135405 0.0 0.0 8.18849972135405 -404.11168414721817 -178.93605258440465</viewport>
+      <viewport>5.2048831473114765 0.0 0.0 5.2048831473114765 -186.17970702368885 -108.00722025587152</viewport>
     </plugin_config>
     <width>400</width>
     <z>3</z>
@@ -114,11 +148,11 @@
       <formatted_time />
       <coloring />
     </plugin_config>
-    <width>1455</width>
-    <z>1</z>
+    <width>731</width>
+    <z>2</z>
     <height>395</height>
-    <location_x>400</location_x>
-    <location_y>5</location_y>
+    <location_x>412</location_x>
+    <location_y>-1</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.TimeLine
@@ -126,16 +160,17 @@
       <mote>0</mote>
       <mote>1</mote>
       <mote>2</mote>
+      <mote>3</mote>
       <showRadioRXTX />
       <showRadioHW />
       <showLEDs />
       <zoomfactor>500.0</zoomfactor>
     </plugin_config>
-    <width>1855</width>
-    <z>4</z>
-    <height>166</height>
-    <location_x>0</location_x>
-    <location_y>763</location_y>
+    <width>1322</width>
+    <z>0</z>
+    <height>213</height>
+    <location_x>4</location_x>
+    <location_y>618</location_y>
   </plugin>
   <plugin>
     org.contikios.cooja.plugins.RadioLogger
@@ -145,11 +180,11 @@
       <showdups>false</showdups>
       <hidenodests>false</hidenodests>
     </plugin_config>
-    <width>1442</width>
-    <z>2</z>
-    <height>300</height>
-    <location_x>410</location_x>
-    <location_y>404</location_y>
+    <width>921</width>
+    <z>1</z>
+    <height>263</height>
+    <location_x>416</location_x>
+    <location_y>377</location_y>
   </plugin>
 </simconf>
 

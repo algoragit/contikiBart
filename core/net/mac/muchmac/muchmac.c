@@ -2,6 +2,59 @@
 #include "net/netstack.h"
 #include "net/packetbuf.h"
 #include "net/queuebuf.h"
+#include <stdio.h>
+#include "net/rime/timesynch.h"
+#include "dev/leds.h"
+
+#define ON_PERIOD	RTIMER_SECOND/2
+
+static struct ctimer ct;
+static struct pt pt;
+static struct rtimer rt;
+
+static int
+turn_on()
+{
+  leds_on(LEDS_BLUE);
+  return NETSTACK_RADIO.on();
+}
+
+static int
+turn_off()
+{
+  leds_off(LEDS_BLUE);
+  return NETSTACK_RADIO.off();
+}
+
+static char
+powercycle(struct rtimer *t, void *ptr)
+{
+  PT_BEGIN(&pt);
+
+  while (1) {
+    // slot start
+    turn_on();
+    rtimer_set(t, RTIMER_NOW() + ON_PERIOD, 0, (rtimer_callback_t)powercycle, NULL);
+    PT_YIELD(&pt);
+
+    // slot end
+    turn_off();
+    rtimer_set(t, timesynch_time_to_rtimer(RTIMER_SECOND), 0, (rtimer_callback_t)powercycle, NULL);
+    PT_YIELD(&pt);
+
+    // slot start
+    turn_on();
+    rtimer_set(t, RTIMER_NOW() + ON_PERIOD, 0, (rtimer_callback_t)powercycle, NULL);
+    PT_YIELD(&pt);
+
+    // slot end
+    turn_off();
+    rtimer_set(t, timesynch_time_to_rtimer(0), 0, (rtimer_callback_t)powercycle, NULL);
+    PT_YIELD(&pt);
+  }
+
+  PT_END(&pt);
+}
 
 static void
 send(mac_callback_t sent_callback, void *ptr)
@@ -55,29 +108,41 @@ input(void)
 static int
 on(void)
 {
-  return NETSTACK_RADIO.on();
+  return turn_on();
 }
 
 static int
 off(int keep_radio_on)
 {
   if (keep_radio_on) {
-    return NETSTACK_RADIO.on();
+    return turn_on();
   } else {
-    return NETSTACK_RADIO.off();
+    return turn_off();
   }
 }
 
 static unsigned short
 channel_check_interval(void)
 {
-  return 0;
+  return CLOCK_SECOND;
+}
+
+static void
+start_tdma(void *ptr)
+{
+  printf("muchmac: starting TDMA mode\n");
+  rtimer_set(&rt, timesynch_time_to_rtimer(0), 0, (rtimer_callback_t)powercycle, NULL);
 }
 
 static void
 init(void)
 {
   on();
+
+  PT_INIT(&pt);
+
+  // schedule start of TDMA mode
+  ctimer_set(&ct, 120*CLOCK_SECOND, start_tdma, NULL);
 }
 
 const struct rdc_driver muchmac_driver = {
