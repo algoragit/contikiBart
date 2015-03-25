@@ -149,7 +149,7 @@
       <coloring />
     </plugin_config>
     <width>731</width>
-    <z>2</z>
+    <z>1</z>
     <height>395</height>
     <location_x>412</location_x>
     <location_y>-1</location_y>
@@ -162,9 +162,10 @@
       <mote>2</mote>
       <mote>3</mote>
       <showRadioRXTX />
+      <showRadioChannels />
       <showRadioHW />
       <showLEDs />
-      <zoomfactor>500.0</zoomfactor>
+      <zoomfactor>100000.0</zoomfactor>
     </plugin_config>
     <width>1322</width>
     <z>0</z>
@@ -181,7 +182,7 @@
       <hidenodests>false</hidenodests>
     </plugin_config>
     <width>921</width>
-    <z>1</z>
+    <z>2</z>
     <height>263</height>
     <location_x>416</location_x>
     <location_y>377</location_y>

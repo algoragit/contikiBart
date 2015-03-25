@@ -49,6 +49,17 @@ turn_off()
   return NETSTACK_RADIO.off();
 }
 
+#define BROADCAST_CHANNEL	26
+static int
+get_channel(const linkaddr_t *addr)
+{
+  if (linkaddr_cmp(addr, &linkaddr_null)) {
+    return BROADCAST_CHANNEL;
+  } else {
+    return (addr->u8[0] % 16) + 11;
+  }
+}
+
 static char
 powercycle(struct rtimer *t, void *ptr)
 {
@@ -58,6 +69,7 @@ powercycle(struct rtimer *t, void *ptr)
     // unicast slot start
     in_unicast_slot = 1;
     in_broadcast_slot = 0;
+    NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, get_channel(&linkaddr_node_addr));
     turn_on();
     if (list_tail(muchmac_queue_unicast) != NULL) {
       process_poll(&send_packet);
@@ -73,6 +85,7 @@ powercycle(struct rtimer *t, void *ptr)
     // broadcast slot start
     in_broadcast_slot = 1;
     in_unicast_slot = 0;
+    NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, get_channel(&linkaddr_null));
     turn_on();
     if (list_tail(muchmac_queue_broadcast) != NULL) {
       process_poll(&send_packet);
@@ -120,6 +133,12 @@ PROCESS_THREAD(send_packet, ev, data)
       int ret;
       packetbuf_set_addr(PACKETBUF_ADDR_SENDER, &linkaddr_node_addr);
 
+      if (!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &linkaddr_null)) {
+        int channel = get_channel(packetbuf_addr(PACKETBUF_ADDR_RECEIVER));
+        printf("muchmac: changing to receiver channel %d\n", channel);
+        NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
+      }
+
       if (NETSTACK_FRAMER.create_and_secure() < 0) {
         ret = MAC_TX_ERR_FATAL;
       } else {
@@ -143,6 +162,14 @@ PROCESS_THREAD(send_packet, ev, data)
 
       list_remove(muchmac_queue, item);
       memb_free(&muchmac_queue_memb, item);
+
+      // switch back to our channel
+      if (!linkaddr_cmp(packetbuf_addr(PACKETBUF_ADDR_RECEIVER), &linkaddr_null)) {
+        linkaddr_t addr = in_unicast_slot ? linkaddr_node_addr : linkaddr_null;
+        int channel = get_channel(&addr);
+        printf("muchmac: changing back to channel %d\n", channel);
+        NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
+      }
     }
   }
 
@@ -186,8 +213,18 @@ send_list(mac_callback_t sent_callback, void *ptr, struct rdc_buf_list *list)
        ((packetbuf_holds_broadcast() && in_broadcast_slot) ||
           (!packetbuf_holds_broadcast() && in_unicast_slot))) {
         printf("muchmac: send immediately\n");
+        if (!(in_broadcast_slot && in_unicast_slot) && !packetbuf_holds_broadcast()) {
+          int channel = get_channel(packetbuf_addr(PACKETBUF_ADDR_RECEIVER));
+          printf("muchmac: changing to receiver channel %d\n", channel);
+          NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
+        }
         queuebuf_to_packetbuf(list->buf);
         send(sent_callback, ptr);
+        if (!(in_broadcast_slot && in_unicast_slot) && !packetbuf_holds_broadcast()) {
+          int channel = get_channel(&linkaddr_node_addr);
+          printf("muchmac: changing back to channel %d\n", channel);
+          NETSTACK_RADIO.set_value(RADIO_PARAM_CHANNEL, channel);
+        }
     } else {
       struct muchmac_queue_item* item;
       item = memb_alloc(&muchmac_queue_memb);
